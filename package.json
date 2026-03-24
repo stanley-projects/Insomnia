@@ -1,0 +1,12 @@
+{
+  "name": "insomnia",
+  "version": "1.0.0",
+  "description": "Keep your PC awake when it matters",
+  "main": "main.js",
+  "scripts": {
+    "start": "unset ELECTRON_RUN_AS_NODE && electron ."
+  },
+  "dependencies": {
+    "electron": "^40.0.0"
+  }
+}

@@ -1,0 +1,493 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', -apple-system, sans-serif;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #2a2a4a;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+h1 {
+  font-size: 22px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #555;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+
+.status-dot.active {
+  background: #4ade80;
+  box-shadow: 0 0 8px #4ade8066;
+}
+
+.status-text {
+  font-size: 13px;
+  color: #888;
+  font-weight: 500;
+}
+
+.status-text.active {
+  color: #4ade80;
+}
+
+/* ── Toggle Section ─────────────────────────────────────────────────────────── */
+
+.toggle-section {
+  padding: 20px 24px;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #16213e;
+  border-radius: 12px;
+  padding: 18px 20px;
+  border: 1px solid #2a2a4a;
+}
+
+.toggle-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.toggle-sub {
+  font-size: 12px;
+  color: #888;
+}
+
+/* Toggle Switch */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 52px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.switch input { display: none; }
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: #333;
+  border-radius: 28px;
+  transition: background 0.3s;
+}
+
+.slider:before {
+  content: '';
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  left: 3px;
+  bottom: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.3s;
+}
+
+.switch input:checked + .slider {
+  background: #f97316;
+}
+
+.switch input:checked + .slider:before {
+  transform: translateX(24px);
+}
+
+/* ── Watch List ─────────────────────────────────────────────────────────────── */
+
+.watchlist-section {
+  padding: 0 24px 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.watchlist-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.watchlist-header h2 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #ccc;
+}
+
+.btn-add {
+  background: #f97316;
+  color: #fff;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-add:hover {
+  background: #ea580c;
+}
+
+.watchlist {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 320px;
+}
+
+.watchlist::-webkit-scrollbar {
+  width: 6px;
+}
+
+.watchlist::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.watchlist::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+
+.watchlist-empty {
+  text-align: center;
+  color: #555;
+  font-size: 13px;
+  padding: 40px 20px;
+}
+
+.watch-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #16213e;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  border: 1px solid #2a2a4a;
+  transition: border-color 0.2s;
+}
+
+.watch-item:hover {
+  border-color: #3a3a5a;
+}
+
+.watch-item-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  object-fit: contain;
+  background: #0f3460;
+  flex-shrink: 0;
+}
+
+.watch-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.watch-item-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.watch-item-exe {
+  font-size: 11px;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.watch-item-running {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #444;
+  flex-shrink: 0;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+
+.watch-item-running.active {
+  background: #4ade80;
+  box-shadow: 0 0 6px #4ade8066;
+}
+
+.btn-remove {
+  background: none;
+  border: none;
+  color: #555;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.2s, background 0.2s;
+}
+
+.btn-remove:hover {
+  color: #ef4444;
+  background: #ef444420;
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────────────── */
+
+footer {
+  padding: 12px 24px;
+  text-align: center;
+  font-size: 11px;
+  color: #444;
+  border-top: 1px solid #2a2a4a;
+}
+
+/* ── App Drawer Modal ───────────────────────────────────────────────────────── */
+
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.open {
+  display: flex;
+}
+
+.drawer {
+  background: #1a1a2e;
+  border-radius: 16px;
+  width: 460px;
+  max-height: 520px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #2a2a4a;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid #2a2a4a;
+}
+
+.drawer-header h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.btn-close:hover {
+  color: #fff;
+}
+
+.drawer-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 20px;
+  padding: 10px 14px;
+  background: #16213e;
+  border-radius: 10px;
+  border: 1px solid #2a2a4a;
+}
+
+.search-icon {
+  color: #555;
+  flex-shrink: 0;
+}
+
+.drawer-search input {
+  background: none;
+  border: none;
+  outline: none;
+  color: #e0e0e0;
+  font-size: 14px;
+  width: 100%;
+  font-family: inherit;
+}
+
+.drawer-search input::placeholder {
+  color: #555;
+}
+
+.drawer-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 20px;
+  min-height: 0;
+}
+
+.drawer-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.drawer-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.drawer-content::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+
+.drawer-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 20px;
+  color: #888;
+  font-size: 13px;
+}
+
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid #333;
+  border-top-color: #f97316;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.app-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding-bottom: 14px;
+}
+
+.app-grid-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+  text-align: center;
+}
+
+.app-grid-item:hover {
+  background: #16213e;
+}
+
+.app-grid-item img {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.app-grid-item .app-placeholder-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: #0f3460;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #f97316;
+  font-weight: 700;
+}
+
+.app-grid-item span {
+  font-size: 11px;
+  color: #ccc;
+  line-height: 1.3;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.drawer-footer {
+  padding: 12px 20px;
+  border-top: 1px solid #2a2a4a;
+}
+
+.btn-browse {
+  width: 100%;
+  background: #16213e;
+  color: #ccc;
+  border: 1px solid #2a2a4a;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  font-family: inherit;
+}
+
+.btn-browse:hover {
+  background: #1e2a4a;
+  border-color: #3a3a5a;
+}
+
+/* ── Layout ─────────────────────────────────────────────────────────────────── */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
