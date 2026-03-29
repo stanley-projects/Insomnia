@@ -35,6 +35,14 @@ const INTEGRATIONS = [
     icon: 'claude'
   },
   {
+    id: 'cursor',
+    name: 'Cursor',
+    description: 'Keeps PC awake while Cursor is running',
+    hookBased: false,
+    processNames: ['cursor.exe'],
+    icon: 'cursor'
+  },
+  {
     id: 'aider',
     name: 'Aider',
     description: 'Keeps PC awake while Aider is running',
@@ -255,7 +263,7 @@ function setupClaudeCodeHooks() {
   const uncafHook = { hooks: [{ type: 'command', command: uncafCmd }] };
 
   // Remove any existing cc-caffeine hooks and add ours
-  const cafEvents = ['UserPromptSubmit', 'PreToolUse', 'PostToolUse'];
+  const cafEvents = ['UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'PermissionRequest'];
   const uncafEvents = ['Notification', 'Stop', 'SessionEnd'];
 
   for (const event of cafEvents) {

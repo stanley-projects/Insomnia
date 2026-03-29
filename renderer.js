@@ -21,7 +21,8 @@ const INTEGRATION_ICONS = {
   'claude-code': '\u2728',
   'aider': '\u{1F916}',
   'codex-cli': '\u{1F4BB}',
-  'ollama': '\u{1F9E0}'
+  'ollama': '\u{1F9E0}',
+  'cursor': '\u270F'
 };
 
 // ── UI Updates ─────────────────────────────────────────────────────────────────
