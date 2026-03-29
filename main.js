@@ -420,6 +420,51 @@ function discoverInstalledApps() {
         }
       }
 
+      # Executables that are updaters/wrappers and never have the real app icon
+      $badExeNames = @('update.exe','uninstall.exe','uninst.exe','unins000.exe','squirrel.exe','chrome_proxy.exe','createdump.exe','crashpad_handler.exe','elevate.exe','notification_helper.exe')
+
+      function Find-BestExe($displayName, $iconPath, $installLocation) {
+        $exe = ''
+        # Extract exe from DisplayIcon (may include args like "Update.exe --processStart Discord.exe")
+        if ($iconPath) {
+          # Try to grab the LAST .exe in the string (often the real app after --processStart)
+          $allExes = [regex]::Matches($iconPath, '(?i)[\w\-. ]+\.exe')
+          foreach ($m in ($allExes | Select-Object -Last 5)) {
+            $candidate = $m.Value.Trim()
+            if ($badExeNames -notcontains $candidate.ToLower()) {
+              # Try to find this exe under the install location
+              if ($installLocation -and (Test-Path $installLocation -ErrorAction SilentlyContinue)) {
+                $found = Get-ChildItem -Path $installLocation -Filter $candidate -Recurse -Depth 3 -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($found) { $exe = $found.FullName; break }
+              }
+            }
+          }
+          # Fallback: grab the first full path .exe from DisplayIcon
+          if (-not $exe -and $iconPath -match '(?i)^"?([A-Za-z]:[^"]+\.exe)') {
+            $candidate = $Matches[1]
+            if ((Test-Path $candidate -ErrorAction SilentlyContinue) -and ($badExeNames -notcontains [System.IO.Path]::GetFileName($candidate).ToLower())) {
+              $exe = $candidate
+            }
+          }
+        }
+        # Search install location for a well-named exe
+        if (-not $exe -and $installLocation -and (Test-Path $installLocation -ErrorAction SilentlyContinue)) {
+          # Prefer an exe whose name resembles the app display name
+          $safeName = ($displayName -replace '[^a-zA-Z0-9]', '').ToLower()
+          $candidates = Get-ChildItem -Path $installLocation -Filter '*.exe' -Recurse -Depth 3 -ErrorAction SilentlyContinue |
+            Where-Object { $badExeNames -notcontains $_.Name.ToLower() } |
+            Sort-Object { [int]($_.Name.ToLower() -replace '[^a-z0-9]','' -eq $safeName) } -Descending |
+            Select-Object -First 1
+          if ($candidates) { $exe = $candidates.FullName }
+        }
+        # Last resort: use whatever the icon path says, even if it's a bad exe
+        if (-not $exe -and $iconPath -and $iconPath -match '(?i)^"?([A-Za-z]:[^",]+\.exe)') {
+          $candidate = $Matches[1]
+          if (Test-Path $candidate -ErrorAction SilentlyContinue) { $exe = $candidate }
+        }
+        return $exe
+      }
+
       $regPaths = @(
         'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',
         'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',
@@ -430,13 +475,7 @@ function discoverInstalledApps() {
           Get-ItemProperty $p -ErrorAction SilentlyContinue |
             Where-Object { $_.DisplayName } |
             ForEach-Object {
-              $exe = ''
-              if ($_.DisplayIcon -and $_.DisplayIcon -match '(?i)^(.+?\\.exe)') {
-                $exe = $Matches[1]
-              } elseif ($_.InstallLocation -and (Test-Path $_.InstallLocation -ErrorAction SilentlyContinue)) {
-                $found = Get-ChildItem -Path $_.InstallLocation -Filter '*.exe' -Depth 1 -ErrorAction SilentlyContinue | Select-Object -First 1
-                if ($found) { $exe = $found.FullName }
-              }
+              $exe = Find-BestExe $_.DisplayName $_.DisplayIcon $_.InstallLocation
               if ($exe -and (Test-Path $exe -ErrorAction SilentlyContinue)) {
                 $key = $exe.ToLower()
                 if (-not $apps.ContainsKey($key)) {
