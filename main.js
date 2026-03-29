@@ -494,14 +494,43 @@ function discoverInstalledApps() {
               $manifest = Join-Path $_.InstallLocation 'AppxManifest.xml'
               if (Test-Path $manifest) {
                 [xml]$xml = Get-Content $manifest -ErrorAction SilentlyContinue
-                $displayName = $xml.Package.Properties.DisplayName
+
+                # Resolve display name — prefer VisualElements name, fall back to Properties name,
+                # skip entirely if still an unresolvable ms-resource: string
+                $displayName = $xml.Package.Applications.Application.'uap:VisualElements'.DisplayName
+                if (-not $displayName -or $displayName -match '^ms-resource:') {
+                  $displayName = $xml.Package.Properties.DisplayName
+                }
+                if (-not $displayName -or $displayName -match '^ms-resource:') {
+                  # Derive readable name from package name: "Microsoft.WindowsNotepad" -> "Windows Notepad"
+                  $displayName = ($_.Name -replace '^[^.]+\.', '') -replace '([a-z])([A-Z])', '$1 $2'
+                }
+
                 $exeName = $xml.Package.Applications.Application.Executable
                 if ($displayName -and $exeName) {
                   $fullExe = Join-Path $_.InstallLocation $exeName
                   if (Test-Path $fullExe -ErrorAction SilentlyContinue) {
                     $key = $fullExe.ToLower()
                     if (-not $apps.ContainsKey($key)) {
-                      $apps[$key] = @{ name = $displayName; exe = $fullExe }
+                      # Find the best icon PNG from the package Assets folder
+                      $iconPath = ''
+                      $logoRel = $xml.Package.Applications.Application.'uap:VisualElements'.Square44x44Logo
+                      if (-not $logoRel) { $logoRel = $xml.Package.Properties.Logo }
+                      if ($logoRel) {
+                        $logoFull = Join-Path $_.InstallLocation $logoRel
+                        if (Test-Path $logoFull) {
+                          $iconPath = $logoFull
+                        } else {
+                          # Windows may store scaled versions like Logo.scale-100.png
+                          $logoDir  = Join-Path $_.InstallLocation ([System.IO.Path]::GetDirectoryName($logoRel))
+                          $logoBase = [System.IO.Path]::GetFileNameWithoutExtension($logoRel)
+                          $found = Get-ChildItem -Path $logoDir -Filter "$logoBase*.png" -ErrorAction SilentlyContinue |
+                            Sort-Object { [int]($_.Name -replace '[^0-9]','') } -Descending |
+                            Select-Object -First 1
+                          if ($found) { $iconPath = $found.FullName }
+                        }
+                      }
+                      $apps[$key] = @{ name = $displayName; exe = $fullExe; iconPath = $iconPath }
                     }
                   }
                 }
@@ -553,7 +582,7 @@ function discoverInstalledApps() {
           const key = path.basename(a.exe).toLowerCase();
           if (!seen.has(key)) {
             seen.add(key);
-            unique.push({ name: a.name, exe: a.exe, exeName: path.basename(a.exe) });
+            unique.push({ name: a.name, exe: a.exe, exeName: path.basename(a.exe), iconPath: a.iconPath || '' });
           }
         }
         unique.sort((a, b) => a.name.localeCompare(b.name));
@@ -563,8 +592,13 @@ function discoverInstalledApps() {
   });
 }
 
-async function getAppIcon(exePath) {
+async function getAppIcon(exePath, iconPath) {
   try {
+    if (iconPath && fs.existsSync(iconPath)) {
+      const { nativeImage } = require('electron');
+      const img = nativeImage.createFromPath(iconPath);
+      if (!img.isEmpty()) return img.toDataURL();
+    }
     const icon = await app.getFileIcon(exePath, { size: 'large' });
     return icon.toDataURL();
   } catch {
@@ -696,7 +730,7 @@ function setupIPC() {
     const apps = await discoverInstalledApps();
     const results = [];
     for (const a of apps) {
-      const icon = await getAppIcon(a.exe);
+      const icon = await getAppIcon(a.exe, a.iconPath);
       results.push({ ...a, icon });
     }
     return results;
