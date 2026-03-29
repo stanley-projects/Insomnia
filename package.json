@@ -1,12 +1,47 @@
 {
-  "name": "insomnia",
+  "name": "insomnia-app",
   "version": "1.0.0",
   "description": "Keep your PC awake when it matters",
   "main": "main.js",
+  "author": "Stanley Projects",
   "scripts": {
-    "start": "unset ELECTRON_RUN_AS_NODE && electron ."
+    "start": "unset ELECTRON_RUN_AS_NODE && electron .",
+    "build": "electron-builder --win"
   },
-  "dependencies": {
-    "electron": "^40.0.0"
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^40.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "com.stanleyprojects.insomnia",
+    "productName": "Insomnia",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer.js",
+      "index.html",
+      "styles.css",
+      "agent-hook.js",
+      "assets/tray-active.png",
+      "assets/tray-inactive.png",
+      "assets/icon.png",
+      "assets/icon.ico"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Insomnia"
+    }
   }
 }

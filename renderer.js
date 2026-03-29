@@ -3,64 +3,101 @@ const statusDot = document.getElementById('statusDot');
 const statusText = document.getElementById('statusText');
 const manualToggle = document.getElementById('manualToggle');
 const reasonText = document.getElementById('reasonText');
-const watchList = document.getElementById('watchList');
+const triggerList = document.getElementById('triggerList');
 const emptyMessage = document.getElementById('emptyMessage');
-const addAppBtn = document.getElementById('addAppBtn');
+const addBtn = document.getElementById('addBtn');
 const drawerOverlay = document.getElementById('drawerOverlay');
 const drawerClose = document.getElementById('drawerClose');
 const searchInput = document.getElementById('searchInput');
 const appGrid = document.getElementById('appGrid');
 const drawerLoading = document.getElementById('drawerLoading');
 const browseBtn = document.getElementById('browseBtn');
+const integrationList = document.getElementById('integrationList');
 
 let installedApps = [];
 
+// Integration icon map
+const INTEGRATION_ICONS = {
+  'claude-code': '\u2728',
+  'aider': '\u{1F916}',
+  'codex-cli': '\u{1F4BB}',
+  'ollama': '\u{1F9E0}'
+};
+
 // ── UI Updates ─────────────────────────────────────────────────────────────────
 function updateUI(status) {
-  // Status indicator
   statusDot.className = 'status-dot' + (status.isAwake ? ' active' : '');
   statusText.className = 'status-text' + (status.isAwake ? ' active' : '');
-  statusText.textContent = status.isAwake ? 'Caffeinating' : 'Inactive';
+  statusText.textContent = status.isAwake ? 'Staying Awake' : 'Inactive';
 
-  // Manual toggle
   manualToggle.checked = status.manualAwake;
 
-  // Reason text
   if (status.isAwake) {
     const reasons = [];
     if (status.manualAwake) reasons.push('Manual mode');
-    if (status.runningWatchedApps.length > 0) {
-      const names = status.watchedApps
-        .filter(a => status.runningWatchedApps.some(r => r.toLowerCase() === a.exe.toLowerCase()))
-        .map(a => a.name);
-      if (names.length > 0) reasons.push(names.join(', ') + ' running');
-    }
-    reasonText.textContent = reasons.join(' + ') || 'Keeping awake';
+
+    const runningAppNames = status.watchedApps
+      .filter(a => status.runningWatchedApps.some(r => r.toLowerCase() === a.exe.toLowerCase()))
+      .map(a => a.name);
+    if (runningAppNames.length > 0) reasons.push(runningAppNames.join(', '));
+
+    const activeIntNames = (status.watchedIntegrations || [])
+      .filter(i => (status.activeIntegrations || []).includes(i.id))
+      .map(i => i.name);
+    if (activeIntNames.length > 0) reasons.push(activeIntNames.join(', '));
+
+    reasonText.textContent = reasons.join(' + ') || 'Staying awake';
   } else {
     reasonText.textContent = 'Manually prevent sleep';
   }
 
-  // Watch list
-  renderWatchList(status);
+  renderTriggerList(status);
 }
 
-function renderWatchList(status) {
-  const apps = status.watchedApps;
+function renderTriggerList(status) {
+  const apps = status.watchedApps || [];
+  const integrations = status.watchedIntegrations || [];
+  const total = apps.length + integrations.length;
 
-  if (apps.length === 0) {
+  // Remove existing items
+  triggerList.querySelectorAll('.watch-item').forEach(i => i.remove());
+
+  if (total === 0) {
     emptyMessage.style.display = 'block';
-    // Remove all watch items but keep empty message
-    const items = watchList.querySelectorAll('.watch-item');
-    items.forEach(i => i.remove());
     return;
   }
 
   emptyMessage.style.display = 'none';
 
-  // Clear existing items
-  const items = watchList.querySelectorAll('.watch-item');
-  items.forEach(i => i.remove());
+  // Render integrations first
+  integrations.forEach(int => {
+    const isActive = (status.activeIntegrations || []).includes(int.id);
+    const el = document.createElement('div');
+    el.className = 'watch-item';
+    el.innerHTML = `
+      <div class="watch-item-running ${isActive ? 'active' : ''}"></div>
+      <div class="watch-item-info">
+        <div class="watch-item-name">${escapeHtml(int.name)}</div>
+        <div class="watch-item-exe">Integration</div>
+      </div>
+      <label class="switch" style="transform: scale(0.75);">
+        <input type="checkbox" ${int.enabled ? 'checked' : ''}>
+        <span class="slider"></span>
+      </label>
+      <button class="btn-remove">&times;</button>
+    `;
 
+    el.querySelector('input[type="checkbox"]').addEventListener('change', () => {
+      window.insomnia.toggleIntegration(int.id);
+    });
+    el.querySelector('.btn-remove').addEventListener('click', () => {
+      window.insomnia.removeIntegration(int.id);
+    });
+
+    triggerList.appendChild(el);
+  });
+
+  // Render apps
   apps.forEach(app => {
     const isRunning = status.runningWatchedApps.some(r => r.toLowerCase() === app.exe.toLowerCase());
     const el = document.createElement('div');
@@ -71,26 +108,21 @@ function renderWatchList(status) {
         <div class="watch-item-name">${escapeHtml(app.name)}</div>
         <div class="watch-item-exe">${escapeHtml(app.exe)}</div>
       </div>
-      <label class="switch" style="transform: scale(0.8);">
+      <label class="switch" style="transform: scale(0.75);">
         <input type="checkbox" ${app.enabled ? 'checked' : ''}>
         <span class="slider"></span>
       </label>
       <button class="btn-remove">&times;</button>
     `;
 
-    // Toggle app
-    const toggle = el.querySelector('input[type="checkbox"]');
-    toggle.addEventListener('change', () => {
+    el.querySelector('input[type="checkbox"]').addEventListener('change', () => {
       window.insomnia.toggleApp(app.exe);
     });
-
-    // Remove app
-    const removeBtn = el.querySelector('.btn-remove');
-    removeBtn.addEventListener('click', () => {
+    el.querySelector('.btn-remove').addEventListener('click', () => {
       window.insomnia.removeApp(app.exe);
     });
 
-    watchList.appendChild(el);
+    triggerList.appendChild(el);
   });
 }
 
@@ -99,8 +131,22 @@ manualToggle.addEventListener('change', () => {
   window.insomnia.toggleAwake();
 });
 
+// ── Drawer Tabs ────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab' + capitalize(tab.dataset.tab)).classList.add('active');
+  });
+});
+
+function capitalize(s) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 // ── App Drawer ─────────────────────────────────────────────────────────────────
-addAppBtn.addEventListener('click', openDrawer);
+addBtn.addEventListener('click', openDrawer);
 drawerClose.addEventListener('click', closeDrawer);
 drawerOverlay.addEventListener('click', (e) => {
   if (e.target === drawerOverlay) closeDrawer();
@@ -108,10 +154,20 @@ drawerOverlay.addEventListener('click', (e) => {
 
 async function openDrawer() {
   drawerOverlay.classList.add('open');
+  // Reset to Integrations tab
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelector('[data-tab="integrations"]').classList.add('active');
+  document.getElementById('tabIntegrations').classList.add('active');
+
   searchInput.value = '';
   appGrid.innerHTML = '';
   drawerLoading.style.display = 'flex';
 
+  // Load integrations
+  loadIntegrations();
+
+  // Load apps
   try {
     installedApps = await window.insomnia.getInstalledApps();
     drawerLoading.style.display = 'none';
@@ -126,6 +182,38 @@ function closeDrawer() {
   drawerOverlay.classList.remove('open');
 }
 
+async function loadIntegrations() {
+  const integrations = await window.insomnia.getAvailableIntegrations();
+  integrationList.innerHTML = '';
+
+  integrations.forEach(int => {
+    const el = document.createElement('div');
+    el.className = 'integration-item' + (int.added ? ' added' : '');
+
+    const icon = INTEGRATION_ICONS[int.id] || '\u26A1';
+    const badgeClass = int.added ? 'added-badge' : (int.hookBased ? 'hook' : 'process');
+    const badgeText = int.added ? 'Added' : (int.hookBased ? 'Smart' : 'Process');
+
+    el.innerHTML = `
+      <div class="integration-icon">${icon}</div>
+      <div class="integration-info">
+        <div class="integration-name">${escapeHtml(int.name)}</div>
+        <div class="integration-desc">${escapeHtml(int.description)}</div>
+      </div>
+      <span class="integration-badge ${badgeClass}">${badgeText}</span>
+    `;
+
+    if (!int.added) {
+      el.addEventListener('click', async () => {
+        await window.insomnia.addIntegration(int.id);
+        closeDrawer();
+      });
+    }
+
+    integrationList.appendChild(el);
+  });
+}
+
 function renderAppGrid(apps) {
   appGrid.innerHTML = '';
   apps.forEach(app => {
@@ -136,13 +224,18 @@ function renderAppGrid(apps) {
       ? `<img src="${app.icon}" alt="">`
       : `<div class="app-placeholder-icon">${app.name.charAt(0).toUpperCase()}</div>`;
 
+    const exeName = app.exeName || (app.exe ? app.exe.split('\\').pop().split('/').pop() : '');
+
     el.innerHTML = `
       ${iconHtml}
-      <span>${escapeHtml(app.name)}</span>
+      <div class="app-item-info">
+        <div class="app-item-name">${escapeHtml(app.name)}</div>
+        <div class="app-item-exe">${escapeHtml(exeName)}</div>
+      </div>
     `;
 
     el.addEventListener('click', async () => {
-      await window.insomnia.addApp({ name: app.name, exe: app.exeName || app.exe });
+      await window.insomnia.addApp({ name: app.name, exe: app.exeName || exeName });
       closeDrawer();
     });
 
@@ -169,7 +262,7 @@ browseBtn.addEventListener('click', async () => {
   }
 });
 
-// ── Escape HTML ────────────────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────────
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
@@ -178,6 +271,4 @@ function escapeHtml(str) {
 
 // ── Listen for Updates ─────────────────────────────────────────────────────────
 window.insomnia.onStatusUpdate(updateUI);
-
-// Initial load
 window.insomnia.getStatus().then(updateUI);

@@ -7,7 +7,6 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!-- Main View -->
   <div class="app">
     <header>
       <div class="header-left">
@@ -31,15 +30,15 @@
       </div>
     </section>
 
-    <!-- Watch List -->
+    <!-- Triggers List -->
     <section class="watchlist-section">
       <div class="watchlist-header">
-        <h2>Watched Apps</h2>
-        <button class="btn-add" id="addAppBtn">+ Add App</button>
+        <h2>Triggers</h2>
+        <button class="btn-add" id="addBtn">+ Add</button>
       </div>
-      <div class="watchlist" id="watchList">
+      <div class="watchlist" id="triggerList">
         <div class="watchlist-empty" id="emptyMessage">
-          No apps being watched. Click "+ Add App" to get started.
+          No triggers yet. Tap "+ Add" to get started.
         </div>
       </div>
     </section>
@@ -49,29 +48,46 @@
     </footer>
   </div>
 
-  <!-- App Drawer Modal -->
+  <!-- Add Drawer Modal -->
   <div class="modal-overlay" id="drawerOverlay">
     <div class="drawer">
       <div class="drawer-header">
-        <h2>Add Application</h2>
+        <h2>Add Trigger</h2>
         <button class="btn-close" id="drawerClose">&times;</button>
       </div>
-      <div class="drawer-search">
-        <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18">
-          <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" fill="none"/>
-          <line x1="16.5" y1="16.5" x2="21" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-        <input type="text" id="searchInput" placeholder="Search installed apps...">
+
+      <!-- Tabs -->
+      <div class="drawer-tabs">
+        <button class="tab active" data-tab="integrations">Integrations</button>
+        <button class="tab" data-tab="apps">Apps</button>
       </div>
-      <div class="drawer-content" id="drawerContent">
-        <div class="drawer-loading" id="drawerLoading">
-          <div class="spinner"></div>
-          <span>Discovering installed apps...</span>
+
+      <!-- Integrations Tab -->
+      <div class="tab-content active" id="tabIntegrations">
+        <div class="drawer-scroll">
+          <div class="integration-list" id="integrationList"></div>
         </div>
-        <div class="app-grid" id="appGrid"></div>
       </div>
-      <div class="drawer-footer">
-        <button class="btn-browse" id="browseBtn">Browse manually...</button>
+
+      <!-- Apps Tab -->
+      <div class="tab-content" id="tabApps">
+        <div class="drawer-search">
+          <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16">
+            <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" fill="none"/>
+            <line x1="16.5" y1="16.5" x2="21" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <input type="text" id="searchInput" placeholder="Search installed apps...">
+        </div>
+        <div class="drawer-scroll">
+          <div class="drawer-loading" id="drawerLoading">
+            <div class="spinner"></div>
+            <span>Discovering installed apps...</span>
+          </div>
+          <div class="app-grid" id="appGrid"></div>
+        </div>
+        <div class="drawer-footer">
+          <button class="btn-browse" id="browseBtn">Browse manually...</button>
+        </div>
       </div>
     </div>
   </div>

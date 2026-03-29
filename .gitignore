@@ -1,2 +1,6 @@
 node_modules/
 config.json
+dist/
+generate-icons.js
+generate-ico.js
+assets/samples/
