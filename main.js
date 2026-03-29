@@ -564,10 +564,11 @@ function discoverInstalledApps() {
       $apps.Values | Sort-Object { $_.name } | ConvertTo-Json -Compress
     `;
 
-    execFile('powershell', ['-NoProfile', '-Command', psScript], {
+    execFile('powershell', ['-NoProfile', '-OutputEncoding', 'UTF8', '-Command', psScript], {
       windowsHide: true,
       maxBuffer: 10 * 1024 * 1024,
-      timeout: 30000
+      timeout: 30000,
+      encoding: 'utf8'
     }, (err, stdout) => {
       if (err) { resolve([]); return; }
       try {
