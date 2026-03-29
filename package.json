@@ -31,6 +31,7 @@
       "assets/icon.png",
       "assets/icon.ico"
     ],
+
     "asarUnpack": [
       "agent-hook.js"
     ],
@@ -44,7 +45,8 @@
       "allowToChangeInstallationDirectory": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Insomnia"
+      "shortcutName": "Insomnia",
+      "include": "build/installer.nsh"
     }
   }
 }
