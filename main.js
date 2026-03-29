@@ -17,7 +17,10 @@ let config = { manualAwake: false, watchedApps: [], watchedIntegrations: [] };
 
 const CONFIG_PATH = path.join(app.getPath('userData'), 'config.json');
 const ASSETS = path.join(__dirname, 'assets');
-const HOOK_SCRIPT = path.join(__dirname, 'agent-hook.js');
+// In production (asar), agent-hook.js is unpacked to app.asar.unpacked/
+const HOOK_SCRIPT = app.isPackaged
+  ? path.join(__dirname.replace('app.asar', 'app.asar.unpacked'), 'agent-hook.js')
+  : path.join(__dirname, 'agent-hook.js');
 const SESSIONS_DIR = path.join(os.homedir(), '.insomnia');
 const SESSIONS_FILE = path.join(SESSIONS_DIR, 'agent-sessions.json');
 const SESSION_TIMEOUT_MS = 90 * 1000; // 90 seconds — tool calls refresh every few seconds while active
@@ -34,7 +37,7 @@ const INTEGRATIONS = [
   {
     id: 'aider',
     name: 'Aider',
-    description: 'AI pair programming in your terminal',
+    description: 'Keeps PC awake while Aider is running',
     hookBased: false,
     processNames: ['aider.exe', 'aider'],
     icon: 'aider'
@@ -42,7 +45,7 @@ const INTEGRATIONS = [
   {
     id: 'codex-cli',
     name: 'OpenAI Codex CLI',
-    description: 'OpenAI\'s coding agent in the terminal',
+    description: 'Keeps PC awake while Codex is running',
     hookBased: false,
     processNames: ['codex.exe', 'codex'],
     icon: 'codex'
@@ -50,7 +53,7 @@ const INTEGRATIONS = [
   {
     id: 'ollama',
     name: 'Ollama',
-    description: 'Local AI model server — stay awake during inference',
+    description: 'Keeps PC awake while Ollama is running',
     hookBased: false,
     processNames: ['ollama.exe', 'ollama_llama_server.exe'],
     icon: 'ollama'
@@ -77,7 +80,7 @@ function saveConfig() {
 // ── Power Management ───────────────────────────────────────────────────────────
 function startCaffeinating() {
   if (powerSaveId === null) {
-    powerSaveId = powerSaveBlocker.start('prevent-app-suspension');
+    powerSaveId = powerSaveBlocker.start('prevent-display-sleep');
   }
   isAwake = true;
   updateTray();
@@ -192,6 +195,36 @@ function checkAgentSessions() {
   } catch {}
 
   evaluateState();
+}
+
+// ── Session File Watcher (instant response to hook activity) ─────────────────
+let sessionWatcher = null;
+let watchDebounce = null;
+
+function watchSessionFile() {
+  // Ensure the directory and file exist before watching
+  if (!fs.existsSync(SESSIONS_DIR)) {
+    fs.mkdirSync(SESSIONS_DIR, { recursive: true });
+  }
+  if (!fs.existsSync(SESSIONS_FILE)) {
+    fs.writeFileSync(SESSIONS_FILE, JSON.stringify({ sessions: {} }, null, 2));
+  }
+
+  try {
+    sessionWatcher = fs.watch(SESSIONS_FILE, () => {
+      // Debounce — hooks can fire in rapid succession
+      if (watchDebounce) clearTimeout(watchDebounce);
+      watchDebounce = setTimeout(() => {
+        checkAgentSessions();
+      }, 200);
+    });
+
+    sessionWatcher.on('error', () => {
+      // File may be deleted/recreated — retry after a delay
+      if (sessionWatcher) { sessionWatcher.close(); sessionWatcher = null; }
+      setTimeout(watchSessionFile, 5000);
+    });
+  } catch {}
 }
 
 // ── Claude Code Hook Setup ─────────────────────────────────────────────────────
@@ -327,6 +360,27 @@ function createTray() {
   ]);
   tray.setContextMenu(contextMenu);
   tray.on('double-click', () => { mainWindow.show(); });
+
+  // Try to promote tray icon to always-visible on Windows
+  promoteTrayIcon();
+}
+
+function promoteTrayIcon() {
+  // Windows stores tray icon visibility in registry under NotifyIconSettings.
+  // We find our app's entry and set IsPromoted=1 to show it in the main tray area.
+  const exePath = app.getPath('exe');
+  const psScript = `
+    $regPath = 'HKCU:\\Control Panel\\NotifyIconSettings'
+    if (Test-Path $regPath) {
+      Get-ChildItem $regPath -ErrorAction SilentlyContinue | ForEach-Object {
+        $execPath = (Get-ItemProperty $_.PSPath -Name 'ExecutablePath' -ErrorAction SilentlyContinue).ExecutablePath
+        if ($execPath -and $execPath -like '*Insomnia*') {
+          Set-ItemProperty $_.PSPath -Name 'IsPromoted' -Value 1 -Type DWord -ErrorAction SilentlyContinue
+        }
+      }
+    }
+  `;
+  execFile('powershell', ['-NoProfile', '-Command', psScript], { windowsHide: true }, () => {});
 }
 
 // ── App Discovery ──────────────────────────────────────────────────────────────
@@ -646,6 +700,7 @@ function createWindow() {
 app.on('before-quit', () => {
   app.isQuitting = true;
   if (pollInterval) clearInterval(pollInterval);
+  if (sessionWatcher) { sessionWatcher.close(); sessionWatcher = null; }
   if (powerSaveId !== null) {
     powerSaveBlocker.stop(powerSaveId);
     powerSaveId = null;
@@ -665,6 +720,9 @@ app.whenReady().then(() => {
 
   checkRunningProcesses();
   pollInterval = setInterval(checkRunningProcesses, 10000);
+
+  // Watch session file for instant hook-based integration response
+  watchSessionFile();
 
   if (manualAwake) evaluateState();
 });

@@ -53,9 +53,9 @@ A simple on/off switch for when you just need your PC to stay awake right now. N
 
 Insomnia lives in your system tray, out of your way. The tray icon tells you at a glance:
 
-- **Full coffee cup** — Caffeinating (keeping awake)
-- **Empty coffee cup** — Inactive (normal sleep behavior)
-- **Hover tooltip** — Shows exactly why it's awake: *"Caffeinating — Claude Code"*, *"Caffeinating — Manual mode + Chrome"*
+- **Purple owl (eyes open)** — Staying Awake (keeping your PC on)
+- **Grey owl (eyes closed)** — Inactive (normal sleep behavior)
+- **Hover tooltip** — Shows exactly why it's awake: *"Staying awake for — Claude Code"*, *"Staying awake for — Manual mode + Chrome"*
 
 Close the window and it keeps running in the tray. Right-click for quick controls.
 

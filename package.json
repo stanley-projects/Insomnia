@@ -31,6 +31,9 @@
       "assets/icon.png",
       "assets/icon.ico"
     ],
+    "asarUnpack": [
+      "agent-hook.js"
+    ],
     "win": {
       "target": "nsis",
       "icon": "assets/icon.ico"
