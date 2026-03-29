@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Insomnia — Keep your PC awake when it matters</title>
+  <meta name="description" content="Insomnia is a lightweight Windows app that prevents your PC from sleeping — automatically when AI tools are working, when specific apps are running, or manually on demand.">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --purple: #7c3aed;
+      --purple-light: #a78bfa;
+      --purple-dark: #5b21b6;
+      --bg: #0f0f13;
+      --surface: #18181f;
+      --border: #2a2a35;
+      --text: #f0f0f5;
+      --muted: #9090a8;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    a { color: var(--purple-light); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Nav */
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.25rem 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo { font-weight: 700; font-size: 1.1rem; letter-spacing: -0.02em; }
+    .nav-logo span { color: var(--purple-light); }
+    .nav-links { display: flex; gap: 1.5rem; align-items: center; }
+    .nav-links a { color: var(--muted); font-size: 0.9rem; }
+    .nav-links a:hover { color: var(--text); text-decoration: none; }
+
+    /* Hero */
+    .hero {
+      text-align: center;
+      padding: 5rem 2rem 4rem;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    .hero-badge {
+      display: inline-block;
+      background: rgba(124, 58, 237, 0.15);
+      border: 1px solid rgba(124, 58, 237, 0.35);
+      color: var(--purple-light);
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.3rem 0.8rem;
+      border-radius: 99px;
+      margin-bottom: 1.5rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    h1 {
+      font-size: clamp(2.2rem, 5vw, 3.2rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 1.25rem;
+    }
+    h1 em { font-style: normal; color: var(--purple-light); }
+    .hero-sub {
+      font-size: 1.15rem;
+      color: var(--muted);
+      max-width: 520px;
+      margin: 0 auto 2.5rem;
+    }
+    .cta-group { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
+    .btn-primary {
+      background: var(--purple);
+      color: #fff;
+      padding: 0.75rem 1.75rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 1rem;
+      transition: background 0.15s;
+      display: inline-flex; align-items: center; gap: 0.5rem;
+    }
+    .btn-primary:hover { background: var(--purple-dark); text-decoration: none; }
+    .btn-secondary {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 500;
+      font-size: 1rem;
+      transition: border-color 0.15s;
+    }
+    .btn-secondary:hover { border-color: var(--purple-light); text-decoration: none; }
+
+    /* Screenshot */
+    .screenshot-wrap {
+      max-width: 480px;
+      margin: 3rem auto 0;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+    }
+    .screenshot-wrap img { width: 100%; display: block; }
+
+    /* Problem section */
+    .problem {
+      background: rgba(124, 58, 237, 0.07);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 3.5rem 2rem;
+      text-align: center;
+    }
+    .problem p {
+      max-width: 600px;
+      margin: 0 auto;
+      font-size: 1.1rem;
+      color: var(--muted);
+      line-height: 1.75;
+    }
+    .problem strong { color: var(--text); }
+
+    /* Features */
+    .features {
+      padding: 4rem 2rem;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .section-label {
+      text-align: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--purple-light);
+      margin-bottom: 0.75rem;
+    }
+    h2 {
+      text-align: center;
+      font-size: 1.9rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 3rem;
+    }
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.25rem;
+    }
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+    }
+    .feature-icon { font-size: 1.75rem; margin-bottom: 0.75rem; }
+    .feature-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.4rem; }
+    .feature-card p { font-size: 0.9rem; color: var(--muted); line-height: 1.6; }
+
+    /* Integrations table */
+    .integrations {
+      padding: 0 2rem 4rem;
+      max-width: 760px;
+      margin: 0 auto;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th {
+      text-align: left;
+      padding: 0.65rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-weight: 600;
+    }
+    td {
+      padding: 0.65rem 1rem;
+      border: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.55rem;
+      border-radius: 99px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .badge-smart { background: rgba(124,58,237,0.2); color: var(--purple-light); border: 1px solid rgba(124,58,237,0.3); }
+    .badge-process { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+
+    /* Install */
+    .install {
+      padding: 4rem 2rem;
+      max-width: 700px;
+      margin: 0 auto;
+      text-align: center;
+    }
+    .install h2 { margin-bottom: 0.75rem; }
+    .install p { color: var(--muted); margin-bottom: 2rem; }
+    .winget-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.5rem;
+      text-align: left;
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+      font-size: 0.9rem;
+      color: var(--purple-light);
+      margin-bottom: 1.5rem;
+    }
+    .winget-block span { color: var(--muted); font-size: 0.8rem; display: block; margin-bottom: 0.25rem; font-family: inherit; }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    footer a { color: var(--muted); }
+    footer a:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="nav-logo">🦉 <span>Insomnia</span></div>
+    <div class="nav-links">
+      <a href="https://github.com/stanley-projects/Insomnia">GitHub</a>
+      <a href="https://github.com/stanley-projects/Insomnia/releases/latest" class="btn-primary" style="padding:0.45rem 1rem;font-size:0.875rem;">Download</a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div class="hero-badge">Free &amp; Open Source · Windows</div>
+    <h1>Keep your PC awake<br><em>when it matters</em></h1>
+    <p class="hero-sub">Insomnia prevents Windows from sleeping — automatically when AI coding tools are working, when specific apps are running, or manually on demand. No more broken sessions.</p>
+    <div class="cta-group">
+      <a href="https://github.com/stanley-projects/Insomnia/releases/latest" class="btn-primary">
+        ↓ Download for Windows
+      </a>
+      <a href="https://github.com/stanley-projects/Insomnia" class="btn-secondary">View on GitHub</a>
+    </div>
+    <div class="screenshot-wrap">
+      <!-- Replace src with your actual screenshot path once added to docs/ -->
+      <img src="screenshot.png" alt="Insomnia app screenshot">
+    </div>
+  </section>
+
+  <section class="problem">
+    <p>
+      <strong>You're running Claude Code or Aider on a long task. You step away.</strong>
+      Your PC falls asleep, kills the process, and you come back to a broken session and lost work.
+      Setting your sleep timeout to "Never" works — but then your PC never sleeps when you actually want it to.
+      <br><br>
+      <strong>Insomnia fixes this.</strong> It stays awake only while something needs it, then gets out of the way.
+    </p>
+  </section>
+
+  <section class="features">
+    <div class="section-label">Features</div>
+    <h2>Smart, not blunt</h2>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon">✨</div>
+        <h3>Hook-based AI integration</h3>
+        <p>For Claude Code, Insomnia hooks directly into the event system — awake while Claude is working, asleep the moment it stops. Precise to the second.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📋</div>
+        <h3>App watching</h3>
+        <p>Add any app as a trigger. Insomnia auto-discovers every installed app on your system. When it's running, you stay awake. When it closes, you don't.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔘</div>
+        <h3>Manual toggle</h3>
+        <p>Need to stay awake right now? One switch. No timers, no fuss. Toggle it off when you're done.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🦉</div>
+        <h3>Lives in the tray</h3>
+        <p>A purple owl means awake. A grey owl means inactive. The hover tooltip tells you exactly why. Close the window — it keeps running.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <h3>Zero bloat</h3>
+        <p>Plain HTML, CSS, and JS. No React. No bundler. Zero external runtime dependencies. Installs in seconds and uses almost no resources.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔒</div>
+        <h3>Local and private</h3>
+        <p>Nothing leaves your machine. No telemetry, no accounts, no cloud. Settings are stored locally and that's it.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="integrations">
+    <div class="section-label" style="text-align:center;">Integrations</div>
+    <h2>Built for AI-assisted coding</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Tool</th>
+          <th>Type</th>
+          <th>How it works</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>✨ Claude Code</strong></td>
+          <td><span class="badge badge-smart">Smart</span></td>
+          <td>Hook-based — awake only while Claude is actively running tools. Idle = asleep.</td>
+        </tr>
+        <tr>
+          <td><strong>✏️ Cursor</strong></td>
+          <td><span class="badge badge-process">Process</span></td>
+          <td>Awake while Cursor is open.</td>
+        </tr>
+        <tr>
+          <td><strong>🤖 Aider</strong></td>
+          <td><span class="badge badge-process">Process</span></td>
+          <td>Awake while Aider is running.</td>
+        </tr>
+        <tr>
+          <td><strong>💻 OpenAI Codex CLI</strong></td>
+          <td><span class="badge badge-process">Process</span></td>
+          <td>Awake while Codex CLI is running.</td>
+        </tr>
+        <tr>
+          <td><strong>🧠 Ollama</strong></td>
+          <td><span class="badge badge-process">Process</span></td>
+          <td>Awake during local model inference.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="install">
+    <div class="section-label">Install</div>
+    <h2>Get started in 30 seconds</h2>
+    <p>Download the installer and run it. Or install via winget:</p>
+    <div class="winget-block">
+      <span># Windows Package Manager</span>
+      winget install StanleyProjects.Insomnia
+    </div>
+    <a href="https://github.com/stanley-projects/Insomnia/releases/latest" class="btn-primary">
+      ↓ Download Installer (.exe)
+    </a>
+    <p style="margin-top:1rem;font-size:0.85rem;">Windows 10/11 · Free · Open Source (MIT)</p>
+  </section>
+
+  <footer>
+    <p>
+      Built by <a href="https://github.com/stanley-projects">Stanley Projects</a> ·
+      <a href="https://github.com/stanley-projects/Insomnia">GitHub</a> ·
+      <a href="https://github.com/stanley-projects/Insomnia/blob/master/LICENSE">MIT License</a>
+    </p>
+  </footer>
+
+</body>
+</html>
