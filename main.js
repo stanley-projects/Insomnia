@@ -704,6 +704,21 @@ function createWindow() {
   });
 }
 
+// ── Single Instance Lock ───────────────────────────────────────────────────────
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    // Someone tried to run a second instance — focus our window instead
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+}
+
 // ── App Lifecycle ──────────────────────────────────────────────────────────────
 app.on('before-quit', () => {
   app.isQuitting = true;
