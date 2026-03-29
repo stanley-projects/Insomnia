@@ -473,7 +473,7 @@ function discoverInstalledApps() {
       foreach ($p in $regPaths) {
         try {
           Get-ItemProperty $p -ErrorAction SilentlyContinue |
-            Where-Object { $_.DisplayName } |
+            Where-Object { $_.DisplayName -and $_.DisplayName -notmatch '^ms-resource:' } |
             ForEach-Object {
               $exe = Find-BestExe $_.DisplayName $_.DisplayIcon $_.InstallLocation
               if ($exe -and (Test-Path $exe -ErrorAction SilentlyContinue)) {

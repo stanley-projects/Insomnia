@@ -347,10 +347,15 @@
   <section class="install">
     <div class="section-label">Install</div>
     <h2>Get started in 30 seconds</h2>
-    <p>Download the installer and run it. Or install via winget:</p>
+    <p>Download the installer and run it. Or use a package manager:</p>
     <div class="winget-block">
-      <span># Windows Package Manager</span>
+      <span># winget</span>
       winget install StanleyProjects.Insomnia
+    </div>
+    <div class="winget-block">
+      <span># Scoop</span>
+      scoop bucket add stanley-projects https://github.com/stanley-projects/scoop-stanley<br>
+      scoop install stanley-projects/insomnia
     </div>
     <a href="https://github.com/stanley-projects/Insomnia/releases/latest" class="btn-primary">
       ↓ Download Installer (.exe)

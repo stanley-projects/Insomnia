@@ -65,6 +65,19 @@ Close the window and it keeps running in the tray. Right-click for quick control
 
 Head to the [Releases](https://github.com/stanley-projects/Insomnia/releases) page and download the latest `.exe` installer.
 
+### winget
+
+```
+winget install StanleyProjects.Insomnia
+```
+
+### Scoop
+
+```
+scoop bucket add stanley-projects https://github.com/stanley-projects/scoop-stanley
+scoop install stanley-projects/insomnia
+```
+
 ### Build from Source
 
 Requires [Node.js](https://nodejs.org/) (v18+).
