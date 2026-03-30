@@ -24,7 +24,7 @@ const HOOK_SCRIPT = app.isPackaged
 const SESSIONS_DIR = path.join(os.homedir(), '.insomnia');
 const SESSIONS_FILE = path.join(SESSIONS_DIR, 'agent-sessions.json');
 const SESSION_TIMEOUT_MS = 90 * 1000; // 90 seconds — normal timeout between hook events
-const SESSION_PROCESS_GRACE_MS = 3 * 60 * 1000; // 3 minutes — max grace period when process is alive but no hooks firing
+const SESSION_PROCESS_GRACE_MS = 5 * 60 * 1000; // 5 minutes — covers long AI responses with no tool calls
 
 // ── Available Integrations ─────────────────────────────────────────────────────
 const INTEGRATIONS = [
