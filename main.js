@@ -394,7 +394,10 @@ function promoteTrayIcon() {
 // ── App Discovery ──────────────────────────────────────────────────────────────
 function discoverInstalledApps() {
   return new Promise((resolve) => {
+    const tmpFile = require('path').join(require('os').tmpdir(), 'insomnia-apps.json');
     const psScript = `
+      [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+      $OutputEncoding = [System.Text.Encoding]::UTF8
       $shell = New-Object -ComObject WScript.Shell
       $apps = @{}
 
@@ -563,18 +566,18 @@ function discoverInstalledApps() {
         }
       }
 
-      $apps.Values | Sort-Object { $_.name } | ConvertTo-Json -Compress
+      $json = $apps.Values | Sort-Object { $_.name } | ConvertTo-Json -Compress
+      [System.IO.File]::WriteAllText('${tmpFile.replace(/\\/g, '\\\\')}', $json, [System.Text.Encoding]::UTF8)
     `;
 
-    execFile('powershell', ['-NoProfile', '-OutputEncoding', 'UTF8', '-Command', psScript], {
+    execFile('powershell', ['-NoProfile', '-Command', psScript], {
       windowsHide: true,
       maxBuffer: 10 * 1024 * 1024,
-      timeout: 30000,
-      encoding: 'utf8'
-    }, (err, stdout) => {
-      if (err) { resolve([]); return; }
+      timeout: 30000
+    }, (err) => {
       try {
-        const trimmed = stdout.trim();
+        const raw = require('fs').readFileSync(tmpFile, 'utf8');
+        const trimmed = raw.replace(/^\uFEFF/, '').trim();
         if (!trimmed) { resolve([]); return; }
         let parsed = JSON.parse(trimmed);
         if (!Array.isArray(parsed)) parsed = [parsed];
@@ -591,6 +594,7 @@ function discoverInstalledApps() {
         unique.sort((a, b) => a.name.localeCompare(b.name));
         resolve(unique);
       } catch { resolve([]); }
+      try { require('fs').unlinkSync(tmpFile); } catch {}
     });
   });
 }
