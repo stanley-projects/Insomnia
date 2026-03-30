@@ -276,17 +276,17 @@ function setupClaudeCodeHooks() {
     ? 'node'
     : process.execPath;
 
-  const cafCmd = `node "${HOOK_SCRIPT}" caffeinate claude-code`;
-  const uncafCmd = `node "${HOOK_SCRIPT}" uncaffeinate claude-code`;
+  const stayAwakeCmd = `node "${HOOK_SCRIPT}" stay-awake claude-code`;
+  const allowSleepCmd = `node "${HOOK_SCRIPT}" allow-sleep claude-code`;
 
-  const cafHook = { hooks: [{ type: 'command', command: cafCmd }] };
-  const uncafHook = { hooks: [{ type: 'command', command: uncafCmd }] };
+  const stayAwakeHook = { hooks: [{ type: 'command', command: stayAwakeCmd }] };
+  const allowSleepHook = { hooks: [{ type: 'command', command: allowSleepCmd }] };
 
   // Remove any existing cc-caffeine hooks and add ours
-  const cafEvents = ['UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'PermissionRequest', 'Notification'];
-  const uncafEvents = ['SessionEnd'];
+  const stayAwakeEvents = ['UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'PermissionRequest', 'Notification'];
+  const allowSleepEvents = ['SessionEnd'];
 
-  for (const event of cafEvents) {
+  for (const event of stayAwakeEvents) {
     if (!settings.hooks[event]) settings.hooks[event] = [];
     // Remove cc-caffeine hooks
     settings.hooks[event] = settings.hooks[event].filter(h =>
@@ -296,10 +296,10 @@ function setupClaudeCodeHooks() {
     settings.hooks[event] = settings.hooks[event].filter(h =>
       !h.hooks?.some(hh => hh.command?.includes('agent-hook.js'))
     );
-    settings.hooks[event].push(cafHook);
+    settings.hooks[event].push(stayAwakeHook);
   }
 
-  for (const event of uncafEvents) {
+  for (const event of allowSleepEvents) {
     if (!settings.hooks[event]) settings.hooks[event] = [];
     settings.hooks[event] = settings.hooks[event].filter(h =>
       !h.hooks?.some(hh => hh.command?.includes('cc-caffeine'))
@@ -307,7 +307,7 @@ function setupClaudeCodeHooks() {
     settings.hooks[event] = settings.hooks[event].filter(h =>
       !h.hooks?.some(hh => hh.command?.includes('agent-hook.js'))
     );
-    settings.hooks[event].push(uncafHook);
+    settings.hooks[event].push(allowSleepHook);
   }
 
   fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));

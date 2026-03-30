@@ -6,8 +6,8 @@
  * No Electron dependency — just reads stdin and writes to a JSON file.
  *
  * Usage:
- *   echo '{"session_id":"abc"}' | node agent-hook.js caffeinate <integration-id>
- *   echo '{"session_id":"abc"}' | node agent-hook.js uncaffeinate <integration-id>
+ *   echo '{"session_id":"abc"}' | node agent-hook.js stay-awake <integration-id>
+ *   echo '{"session_id":"abc"}' | node agent-hook.js allow-sleep <integration-id>
  */
 
 const fs = require('fs');
@@ -58,7 +58,7 @@ async function main() {
 
   const sessions = readSessions();
 
-  if (command === 'caffeinate') {
+  if (command === 'stay-awake') {
     if (!sessions.sessions[key]) {
       sessions.sessions[key] = {
         integration: integrationId,
@@ -68,7 +68,7 @@ async function main() {
     }
     sessions.sessions[key].last_activity = new Date().toISOString();
     writeSessions(sessions);
-  } else if (command === 'uncaffeinate') {
+  } else if (command === 'allow-sleep') {
     delete sessions.sessions[key];
     writeSessions(sessions);
   }
