@@ -23,7 +23,7 @@ const HOOK_SCRIPT = app.isPackaged
   : path.join(__dirname, 'agent-hook.js');
 const SESSIONS_DIR = path.join(os.homedir(), '.insomnia');
 const SESSIONS_FILE = path.join(SESSIONS_DIR, 'agent-sessions.json');
-const SESSION_TIMEOUT_MS = 90 * 1000; // 90 seconds — tool calls refresh every few seconds while active
+const SESSION_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes — covers background builds & long tool runs
 
 // ── Available Integrations ─────────────────────────────────────────────────────
 const INTEGRATIONS = [
@@ -263,8 +263,8 @@ function setupClaudeCodeHooks() {
   const uncafHook = { hooks: [{ type: 'command', command: uncafCmd }] };
 
   // Remove any existing cc-caffeine hooks and add ours
-  const cafEvents = ['UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'PermissionRequest'];
-  const uncafEvents = ['Notification', 'Stop', 'SessionEnd'];
+  const cafEvents = ['UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'PermissionRequest', 'Notification'];
+  const uncafEvents = ['Stop', 'SessionEnd'];
 
   for (const event of cafEvents) {
     if (!settings.hooks[event]) settings.hooks[event] = [];
