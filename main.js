@@ -527,8 +527,8 @@ function discoverInstalledApps() {
                   $displayName = $xml.Package.Properties.DisplayName
                 }
                 if (-not $displayName -or $displayName -match '^ms-resource:') {
-                  # Derive readable name from package name: "Microsoft.WindowsNotepad" -> "Windows Notepad"
-                  $displayName = ($_.Name -replace '^[^.]+\.', '') -replace '([a-z])([A-Z])', '$1 $2'
+                  # Pass raw package name — camelCase splitting done in Node to avoid PS escaping issues
+                  $displayName = 'pkg:' + ($_.Name -replace '^[^.]+\.', '')
                 }
 
                 $exeName = $xml.Package.Applications.Application.Executable
@@ -605,6 +605,10 @@ function discoverInstalledApps() {
         const unique = [];
         for (const a of parsed) {
           if (!a.name || !a.exe) continue;
+          // Resolve package names passed with pkg: prefix (camelCase split done here to avoid PS escaping)
+          if (a.name.startsWith('pkg:')) {
+            a.name = a.name.slice(4).replace(/([a-z])([A-Z])/g, '$1 $2');
+          }
           const key = path.basename(a.exe).toLowerCase();
           if (!seen.has(key)) {
             seen.add(key);
