@@ -23,7 +23,7 @@ const HOOK_SCRIPT = app.isPackaged
   : path.join(__dirname, 'agent-hook.js');
 const SESSIONS_DIR = path.join(os.homedir(), '.insomnia');
 const SESSIONS_FILE = path.join(SESSIONS_DIR, 'agent-sessions.json');
-const SESSION_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes — covers background builds & long tool runs
+const SESSION_TIMEOUT_MS = 90 * 1000; // 90 seconds — extended by process check if still running
 
 // ── Available Integrations ─────────────────────────────────────────────────────
 const INTEGRATIONS = [
@@ -32,6 +32,7 @@ const INTEGRATIONS = [
     name: 'Claude Code',
     description: 'Keeps PC awake while Claude is actively working on tasks',
     hookBased: true,
+    processNames: ['claude.exe'],
     icon: 'claude'
   },
   {
@@ -126,12 +127,17 @@ function checkRunningProcesses() {
     .map(i => INTEGRATIONS.find(def => def.id === i.id))
     .filter(def => def && !def.hookBased && def.processNames);
 
-  const needsTasklist = enabledApps.length > 0 || processIntegrations.length > 0;
+  // Hook-based integrations may also have processNames for background task detection
+  const hookIntegrations = config.watchedIntegrations
+    .filter(i => i.enabled)
+    .map(i => INTEGRATIONS.find(def => def.id === i.id))
+    .filter(def => def && def.hookBased);
+
+  const needsTasklist = enabledApps.length > 0 || processIntegrations.length > 0 || hookIntegrations.some(d => d.processNames);
 
   if (!needsTasklist) {
     runningWatchedApps = [];
-    // Still check hook-based integrations
-    checkAgentSessions();
+    checkAgentSessions('');
     return;
   }
 
@@ -156,16 +162,16 @@ function checkRunningProcesses() {
       }
     }
 
-    checkAgentSessions();
+    checkAgentSessions(lower);
   });
   proc.on('error', () => {
     runningWatchedApps = [];
-    checkAgentSessions();
+    checkAgentSessions('');
   });
 }
 
 // ── Agent Session Monitoring (Hook-based integrations) ─────────────────────────
-function checkAgentSessions() {
+function checkAgentSessions(tasklistLower) {
   const hookIntegrations = config.watchedIntegrations
     .filter(i => i.enabled)
     .map(i => INTEGRATIONS.find(def => def.id === i.id))
@@ -189,14 +195,22 @@ function checkAgentSessions() {
     const now = Date.now();
 
     for (const def of hookIntegrations) {
-      // Check if any session for this integration is active
-      const hasActive = Object.values(data.sessions || {}).some(s => {
+      // Check if any session for this integration has recent hook activity
+      const hasRecentHook = Object.values(data.sessions || {}).some(s => {
         if (s.integration !== def.id) return false;
         const lastActivity = new Date(s.last_activity).getTime();
         return (now - lastActivity) < SESSION_TIMEOUT_MS;
       });
 
-      if (hasActive) {
+      // Check if the process is still running (covers background tasks / idle gaps)
+      const processAlive = def.processNames && tasklistLower
+        ? def.processNames.some(p => tasklistLower.includes(p.toLowerCase()))
+        : false;
+
+      // Session had hook activity at some point AND process is still running = stay awake
+      const hasSession = Object.values(data.sessions || {}).some(s => s.integration === def.id);
+
+      if (hasRecentHook || (hasSession && processAlive)) {
         activeIntegrations.push({ id: def.id, name: def.name, reason: 'hook' });
       }
     }
