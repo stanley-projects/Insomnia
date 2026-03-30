@@ -23,7 +23,8 @@ const HOOK_SCRIPT = app.isPackaged
   : path.join(__dirname, 'agent-hook.js');
 const SESSIONS_DIR = path.join(os.homedir(), '.insomnia');
 const SESSIONS_FILE = path.join(SESSIONS_DIR, 'agent-sessions.json');
-const SESSION_TIMEOUT_MS = 90 * 1000; // 90 seconds — extended by process check if still running
+const SESSION_TIMEOUT_MS = 90 * 1000; // 90 seconds — normal timeout between hook events
+const SESSION_PROCESS_GRACE_MS = 5 * 60 * 1000; // 5 minutes — max grace period when process is alive but no hooks firing
 
 // ── Available Integrations ─────────────────────────────────────────────────────
 const INTEGRATIONS = [
@@ -207,10 +208,15 @@ function checkAgentSessions(tasklistLower) {
         ? def.processNames.some(p => tasklistLower.includes(p.toLowerCase()))
         : false;
 
-      // Session had hook activity at some point AND process is still running = stay awake
-      const hasSession = Object.values(data.sessions || {}).some(s => s.integration === def.id);
+      // If process is alive, allow a longer grace period (background builds etc)
+      // but not forever — if last hook was >5 min ago, Claude is just sitting idle
+      const withinGracePeriod = Object.values(data.sessions || {}).some(s => {
+        if (s.integration !== def.id) return false;
+        const lastActivity = new Date(s.last_activity).getTime();
+        return (now - lastActivity) < SESSION_PROCESS_GRACE_MS;
+      });
 
-      if (hasRecentHook || (hasSession && processAlive)) {
+      if (hasRecentHook || (processAlive && withinGracePeriod)) {
         activeIntegrations.push({ id: def.id, name: def.name, reason: 'hook' });
       }
     }
