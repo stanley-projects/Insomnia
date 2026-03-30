@@ -27,6 +27,7 @@ Insomnia has built-in support for AI coding tools with two types of monitoring:
 | Integration | Type | How It Works |
 |---|---|---|
 | **Claude Code** | Hook-based | Knows when Claude is *actively working* (not just open). Wakes on tool use, sleeps when idle. |
+| **Cursor** | Process-based | Keeps awake while Cursor is running |
 | **Aider** | Process-based | Keeps awake while `aider.exe` is running |
 | **OpenAI Codex CLI** | Process-based | Keeps awake while `codex.exe` is running |
 | **Ollama** | Process-based | Keeps awake during local AI model inference |
@@ -103,8 +104,8 @@ If *any* trigger is active, the PC stays awake. When *all* triggers go inactive,
 
 When you enable the Claude Code integration, Insomnia adds hooks to `~/.claude/settings.json` that fire on:
 
-- `UserPromptSubmit`, `PreToolUse`, `PostToolUse` → signal activity (caffeinate)
-- `Notification`, `Stop`, `SessionEnd` → signal idle (uncaffeinate)
+- `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PermissionRequest`, `Notification` → signal activity (stay awake)
+- `SessionEnd` → signal idle (allow sleep)
 
 This means your PC stays awake precisely while Claude is doing work — reading files, running commands, writing code — and goes back to normal the moment it stops. No wasted power, no interrupted sessions.
 
@@ -115,6 +116,14 @@ Settings are stored in your Electron user data directory and persist across rest
 - **Watched apps** — list of executables to monitor, each with an enable/disable toggle
 - **Watched integrations** — AI tools with their monitoring type and enabled state
 - **Manual awake state** — remembered across restarts
+
+## Screenshots
+
+| Main Window | Add Trigger — Integrations | Add Trigger — Apps | System Tray |
+|---|---|---|---|
+| ![Main window](docs/screenshot.png) | ![Integrations](docs/screenshot-integrations.png) | ![Apps](docs/screenshot-apps.png) | ![Tray](docs/screenshot-tray.png) |
+
+---
 
 ## Use Cases
 
