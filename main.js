@@ -284,7 +284,7 @@ function setupClaudeCodeHooks() {
 
   // Remove any existing cc-caffeine hooks and add ours
   const cafEvents = ['UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'PermissionRequest', 'Notification'];
-  const uncafEvents = ['Stop', 'SessionEnd'];
+  const uncafEvents = ['SessionEnd'];
 
   for (const event of cafEvents) {
     if (!settings.hooks[event]) settings.hooks[event] = [];
