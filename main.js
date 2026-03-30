@@ -477,6 +477,8 @@ function discoverInstalledApps() {
             ForEach-Object {
               $exe = Find-BestExe $_.DisplayName $_.DisplayIcon $_.InstallLocation
               if ($exe -and (Test-Path $exe -ErrorAction SilentlyContinue)) {
+                # Skip Store apps (WindowsApps folder) — AppX section handles them better
+                if ($exe -match '\\WindowsApps\\') { return }
                 $key = $exe.ToLower()
                 if (-not $apps.ContainsKey($key)) {
                   $apps[$key] = @{ name = $_.DisplayName; exe = $exe }
