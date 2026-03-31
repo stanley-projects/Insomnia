@@ -14,6 +14,8 @@ let manualAwake = false;
 let runningWatchedApps = [];
 let activeIntegrations = [];
 let config = { manualAwake: false, watchedApps: [], watchedIntegrations: [] };
+let processLastSeen = {}; // integrationId → timestamp, for process-based grace period
+let appLastSeen = {};     // exe.toLowerCase() → timestamp, for watched apps grace period
 
 const CONFIG_PATH = path.join(app.getPath('userData'), 'config.json');
 const ASSETS = path.join(__dirname, 'assets');
@@ -25,6 +27,7 @@ const SESSIONS_DIR = path.join(os.homedir(), '.insomnia');
 const SESSIONS_FILE = path.join(SESSIONS_DIR, 'agent-sessions.json');
 const SESSION_TIMEOUT_MS = 90 * 1000; // 90 seconds — normal timeout between hook events
 const SESSION_PROCESS_GRACE_MS = 5 * 60 * 1000; // 5 minutes — covers long AI responses with no tool calls
+const PROCESS_GRACE_MS = 30 * 1000; // 30 seconds — grace period for process-based integrations/apps after process disappears
 
 // ── Available Integrations ─────────────────────────────────────────────────────
 const INTEGRATIONS = [
@@ -148,18 +151,32 @@ function checkRunningProcesses() {
   proc.on('close', () => {
     const lower = output.toLowerCase();
 
-    // Check apps
-    runningWatchedApps = enabledApps.filter(a => lower.includes(a.exe.toLowerCase()));
+    // Check apps — with 30s grace period so a brief disappearance doesn't instantly deactivate
+    const now = Date.now();
+    for (const a of enabledApps) {
+      if (lower.includes(a.exe.toLowerCase())) {
+        appLastSeen[a.exe.toLowerCase()] = now;
+      }
+    }
+    runningWatchedApps = enabledApps.filter(a => {
+      const key = a.exe.toLowerCase();
+      if (lower.includes(key)) return true;
+      return (now - (appLastSeen[key] || 0)) < PROCESS_GRACE_MS;
+    });
 
-    // Check process-based integrations
+    // Check process-based integrations — with 30s grace period
     for (const def of processIntegrations) {
       const isRunning = def.processNames.some(p => lower.includes(p.toLowerCase()));
       if (isRunning) {
+        processLastSeen[def.id] = now;
         if (!activeIntegrations.find(a => a.id === def.id)) {
           activeIntegrations.push({ id: def.id, name: def.name, reason: 'process' });
         }
       } else {
-        activeIntegrations = activeIntegrations.filter(a => !(a.id === def.id && a.reason === 'process'));
+        const withinGrace = (now - (processLastSeen[def.id] || 0)) < PROCESS_GRACE_MS;
+        if (!withinGrace) {
+          activeIntegrations = activeIntegrations.filter(a => !(a.id === def.id && a.reason === 'process'));
+        }
       }
     }
 
@@ -342,7 +359,7 @@ function getTooltip() {
   if (!isAwake) return 'Inactive';
 
   const reasons = [];
-  if (manualAwake) reasons.push('Manual mode');
+  if (manualAwake) reasons.push('Manually triggered');
   if (runningWatchedApps.length > 0) {
     reasons.push(runningWatchedApps.map(a => a.name).join(', '));
   }
@@ -680,6 +697,7 @@ function setupIPC() {
 
   ipcMain.handle('remove-app', (_, exe) => {
     config.watchedApps = config.watchedApps.filter(a => a.exe.toLowerCase() !== exe.toLowerCase());
+    delete appLastSeen[exe.toLowerCase()];
     saveConfig();
     checkRunningProcesses();
     return getStatus();
@@ -733,6 +751,7 @@ function setupIPC() {
     }
 
     activeIntegrations = activeIntegrations.filter(a => a.id !== integrationId);
+    delete processLastSeen[integrationId];
     saveConfig();
     evaluateState();
     return getStatus();
