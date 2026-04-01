@@ -280,16 +280,17 @@ function refreshChildProcessCache(integrations) {
   if (integrationMap.length === 0) return;
 
   // One PowerShell call: get all process parent/child relationships once,
-  // then check each integration's processes for children. Output JSON.
+  // then check each integration's processes for WORK children only. Output JSON.
   const ps = `
     $all = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Select-Object ProcessId,ParentProcessId,Name
+    $workNames = @('bash.exe','cmd.exe','git.exe','node.exe','powershell.exe','pwsh.exe','npm.exe','python.exe','python3.exe','pip.exe','cargo.exe','make.exe','msbuild.exe','dotnet.exe','go.exe','rustc.exe','tsc.exe')
     $integrations = @(${integrationMap.join(',')})
     $result = @{}
     foreach ($integ in $integrations) {
       $pids = ($all | Where-Object { $integ.names -contains $_.Name } | Select-Object -ExpandProperty ProcessId)
       if ($pids) {
-        $hasChild = ($all | Where-Object { $pids -contains $_.ParentProcessId }) | Measure-Object | Select-Object -ExpandProperty Count
-        $result[$integ.id] = ($hasChild -gt 0)
+        $hasWorkChild = ($all | Where-Object { ($pids -contains $_.ParentProcessId) -and ($workNames -contains $_.Name) }) | Measure-Object | Select-Object -ExpandProperty Count
+        $result[$integ.id] = ($hasWorkChild -gt 0)
       } else {
         $result[$integ.id] = $false
       }
