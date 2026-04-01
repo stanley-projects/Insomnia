@@ -175,19 +175,24 @@ function checkRunningProcesses() {
           activeIntegrations.push({ id: def.id, name: def.name, reason: 'process' });
         }
       } else {
+        // Process not currently visible — check grace period or active child processes
+        // (e.g. Cursor closed but a build it started is still running)
         const withinGrace = (now - (processLastSeen[def.id] || 0)) < PROCESS_GRACE_MS;
-        if (!withinGrace) {
+        const hasChildren = childProcessCache[def.id] === true;
+        if (!withinGrace && !hasChildren) {
           activeIntegrations = activeIntegrations.filter(a => !(a.id === def.id && a.reason === 'process'));
         }
       }
     }
 
-    // Refresh child process cache for hook-based integrations (async, non-blocking)
-    const hookDefs = config.watchedIntegrations
+    // Refresh child process cache for ALL enabled integrations (async, non-blocking)
+    // Hook-based: used to detect long-running tool execution
+    // Process-based: used to extend grace when a spawned task (build, compile) outlives the parent app
+    const allEnabledDefs = config.watchedIntegrations
       .filter(i => i.enabled)
       .map(i => INTEGRATIONS.find(def => def.id === i.id))
-      .filter(def => def && def.hookBased);
-    refreshChildProcessCache(hookDefs);
+      .filter(Boolean);
+    refreshChildProcessCache(allEnabledDefs);
 
     checkAgentSessions(lower);
   });
@@ -264,23 +269,42 @@ function checkAgentSessions(tasklistLower) {
 // ── Child Process Detection ────────────────────────────────────────────────────
 // Checks if claude.exe / code.exe has any active child processes (bash, git, node, etc.)
 // This covers long-running tool executions that don't fire hooks for minutes at a time.
-function refreshChildProcessCache(hookIntegrations) {
-  if (hookIntegrations.length === 0) return;
+function refreshChildProcessCache(integrations) {
+  if (integrations.length === 0) return;
 
+  // Build a lookup: integrationId → processNames
+  const integrationMap = integrations
+    .filter(def => def.processNames && def.processNames.length > 0)
+    .map(def => `@{ id='${def.id}'; names=@(${def.processNames.map(n => `'${n}'`).join(',')}) }`);
+
+  if (integrationMap.length === 0) return;
+
+  // One PowerShell call: get all process parent/child relationships once,
+  // then check each integration's processes for children. Output JSON.
   const ps = `
-    $names = @('code.exe','claude.exe')
     $all = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Select-Object ProcessId,ParentProcessId,Name
-    $parentIds = ($all | Where-Object { $names -contains $_.Name } | Select-Object -ExpandProperty ProcessId)
-    if (-not $parentIds) { Write-Output 'false'; exit }
-    $child = $all | Where-Object { $parentIds -contains $_.ParentProcessId }
-    if ($child) { Write-Output 'true' } else { Write-Output 'false' }
+    $integrations = @(${integrationMap.join(',')})
+    $result = @{}
+    foreach ($integ in $integrations) {
+      $pids = ($all | Where-Object { $integ.names -contains $_.Name } | Select-Object -ExpandProperty ProcessId)
+      if ($pids) {
+        $hasChild = ($all | Where-Object { $pids -contains $_.ParentProcessId }) | Measure-Object | Select-Object -ExpandProperty Count
+        $result[$integ.id] = ($hasChild -gt 0)
+      } else {
+        $result[$integ.id] = $false
+      }
+    }
+    $result | ConvertTo-Json -Compress
   `;
 
   execFile('powershell', ['-NoProfile', '-Command', ps], { windowsHide: true, timeout: 8000 }, (err, stdout) => {
-    const hasChildren = !err && stdout.trim() === 'true';
-    for (const def of hookIntegrations) {
-      childProcessCache[def.id] = hasChildren;
-    }
+    if (err || !stdout.trim()) return;
+    try {
+      const parsed = JSON.parse(stdout.trim().replace(/^\uFEFF/, ''));
+      for (const [id, hasChildren] of Object.entries(parsed)) {
+        childProcessCache[id] = hasChildren === true;
+      }
+    } catch {}
   });
 }
 
