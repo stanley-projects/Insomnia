@@ -67,8 +67,6 @@ async function main() {
       };
     }
     sessions.sessions[key].last_activity = new Date().toISOString();
-    // Clear pending_response — tool use means a new turn started, previous response is done
-    delete sessions.sessions[key].pending_response;
     writeSessions(sessions);
   } else if (command === 'pending-response') {
     // UserPromptSubmit — Claude is now generating a response
