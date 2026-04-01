@@ -29,7 +29,7 @@ const SESSIONS_FILE = path.join(SESSIONS_DIR, 'agent-sessions.json');
 const SESSION_TIMEOUT_MS = 90 * 1000;           // 90 seconds — normal timeout between hook events
 const SESSION_PROCESS_GRACE_MS = 5 * 60 * 1000; // 5 minutes — fallback grace while process is alive
 const PROCESS_GRACE_MS = 30 * 1000;              // 30 seconds — grace for process-based integrations/apps
-const PENDING_RESPONSE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes — covers long text generation & long tool runs
+const PENDING_RESPONSE_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes — covers long text generation; expires if Stop hook doesn't fire
 
 // ── Available Integrations ─────────────────────────────────────────────────────
 const INTEGRATIONS = [
