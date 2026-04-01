@@ -68,6 +68,25 @@ async function main() {
     }
     sessions.sessions[key].last_activity = new Date().toISOString();
     writeSessions(sessions);
+  } else if (command === 'pending-response') {
+    // UserPromptSubmit — Claude is now generating a response
+    if (!sessions.sessions[key]) {
+      sessions.sessions[key] = {
+        integration: integrationId,
+        session_id: sessionId,
+        created_at: new Date().toISOString()
+      };
+    }
+    sessions.sessions[key].last_activity = new Date().toISOString();
+    sessions.sessions[key].pending_response = true;
+    writeSessions(sessions);
+  } else if (command === 'response-done') {
+    // Stop hook — Claude finished the full response turn, clear pending flag
+    if (sessions.sessions[key]) {
+      sessions.sessions[key].last_activity = new Date().toISOString();
+      delete sessions.sessions[key].pending_response;
+      writeSessions(sessions);
+    }
   } else if (command === 'allow-sleep') {
     delete sessions.sessions[key];
     writeSessions(sessions);

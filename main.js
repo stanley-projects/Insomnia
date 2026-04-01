@@ -16,6 +16,7 @@ let activeIntegrations = [];
 let config = { manualAwake: false, watchedApps: [], watchedIntegrations: [] };
 let processLastSeen = {}; // integrationId → timestamp, for process-based grace period
 let appLastSeen = {};     // exe.toLowerCase() → timestamp, for watched apps grace period
+let childProcessCache = {}; // integrationId → boolean, cached child process detection result
 
 const CONFIG_PATH = path.join(app.getPath('userData'), 'config.json');
 const ASSETS = path.join(__dirname, 'assets');
@@ -25,9 +26,10 @@ const HOOK_SCRIPT = app.isPackaged
   : path.join(__dirname, 'agent-hook.js');
 const SESSIONS_DIR = path.join(os.homedir(), '.insomnia');
 const SESSIONS_FILE = path.join(SESSIONS_DIR, 'agent-sessions.json');
-const SESSION_TIMEOUT_MS = 90 * 1000; // 90 seconds — normal timeout between hook events
-const SESSION_PROCESS_GRACE_MS = 5 * 60 * 1000; // 5 minutes — covers long AI responses with no tool calls
-const PROCESS_GRACE_MS = 30 * 1000; // 30 seconds — grace period for process-based integrations/apps after process disappears
+const SESSION_TIMEOUT_MS = 90 * 1000;           // 90 seconds — normal timeout between hook events
+const SESSION_PROCESS_GRACE_MS = 5 * 60 * 1000; // 5 minutes — fallback grace while process is alive
+const PROCESS_GRACE_MS = 30 * 1000;              // 30 seconds — grace for process-based integrations/apps
+const PENDING_RESPONSE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes — covers long text generation & long tool runs
 
 // ── Available Integrations ─────────────────────────────────────────────────────
 const INTEGRATIONS = [
@@ -180,6 +182,13 @@ function checkRunningProcesses() {
       }
     }
 
+    // Refresh child process cache for hook-based integrations (async, non-blocking)
+    const hookDefs = config.watchedIntegrations
+      .filter(i => i.enabled)
+      .map(i => INTEGRATIONS.find(def => def.id === i.id))
+      .filter(def => def && def.hookBased);
+    refreshChildProcessCache(hookDefs);
+
     checkAgentSessions(lower);
   });
   proc.on('error', () => {
@@ -220,26 +229,59 @@ function checkAgentSessions(tasklistLower) {
         return (now - lastActivity) < SESSION_TIMEOUT_MS;
       });
 
-      // Check if the process is still running (covers background tasks / idle gaps)
+      // Check pending_response flag — set by UserPromptSubmit, cleared by Stop.
+      // Covers long text generation AND long tool execution (flag stays set the whole turn).
+      const hasPendingResponse = Object.values(data.sessions || {}).some(s => {
+        if (s.integration !== def.id || !s.pending_response) return false;
+        const lastActivity = new Date(s.last_activity).getTime();
+        return (now - lastActivity) < PENDING_RESPONSE_TIMEOUT_MS;
+      });
+
+      // Check if the process is still running
       const processAlive = def.processNames && tasklistLower
         ? def.processNames.some(p => tasklistLower.includes(p.toLowerCase()))
         : false;
 
-      // If process is alive, allow a longer grace period (background builds etc)
-      // but not forever — if last hook was >5 min ago, Claude is just sitting idle
+      // Fallback grace period — process alive + had activity in last 5 min
       const withinGracePeriod = Object.values(data.sessions || {}).some(s => {
         if (s.integration !== def.id) return false;
         const lastActivity = new Date(s.last_activity).getTime();
         return (now - lastActivity) < SESSION_PROCESS_GRACE_MS;
       });
 
-      if (hasRecentHook || (processAlive && withinGracePeriod)) {
+      // Child process check — covers long-running commands (bash, git, npm, etc.)
+      const hasChildProcesses = childProcessCache[def.id] === true;
+
+      if (hasRecentHook || hasPendingResponse || hasChildProcesses || (processAlive && withinGracePeriod)) {
         activeIntegrations.push({ id: def.id, name: def.name, reason: 'hook' });
       }
     }
   } catch {}
 
   evaluateState();
+}
+
+// ── Child Process Detection ────────────────────────────────────────────────────
+// Checks if claude.exe / code.exe has any active child processes (bash, git, node, etc.)
+// This covers long-running tool executions that don't fire hooks for minutes at a time.
+function refreshChildProcessCache(hookIntegrations) {
+  if (hookIntegrations.length === 0) return;
+
+  const ps = `
+    $names = @('code.exe','claude.exe')
+    $all = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Select-Object ProcessId,ParentProcessId,Name
+    $parentIds = ($all | Where-Object { $names -contains $_.Name } | Select-Object -ExpandProperty ProcessId)
+    if (-not $parentIds) { Write-Output 'false'; exit }
+    $child = $all | Where-Object { $parentIds -contains $_.ParentProcessId }
+    if ($child) { Write-Output 'true' } else { Write-Output 'false' }
+  `;
+
+  execFile('powershell', ['-NoProfile', '-Command', ps], { windowsHide: true, timeout: 8000 }, (err, stdout) => {
+    const hasChildren = !err && stdout.trim() === 'true';
+    for (const def of hookIntegrations) {
+      childProcessCache[def.id] = hasChildren;
+    }
+  });
 }
 
 // ── Session File Watcher (instant response to hook activity) ─────────────────
@@ -293,38 +335,32 @@ function setupClaudeCodeHooks() {
     ? 'node'
     : process.execPath;
 
-  const stayAwakeCmd = `node "${HOOK_SCRIPT}" stay-awake claude-code`;
-  const allowSleepCmd = `node "${HOOK_SCRIPT}" allow-sleep claude-code`;
+  const stayAwakeCmd        = `node "${HOOK_SCRIPT}" stay-awake claude-code`;
+  const pendingResponseCmd  = `node "${HOOK_SCRIPT}" pending-response claude-code`;
+  const responseDoneCmd     = `node "${HOOK_SCRIPT}" response-done claude-code`;
+  const allowSleepCmd       = `node "${HOOK_SCRIPT}" allow-sleep claude-code`;
 
-  const stayAwakeHook = { hooks: [{ type: 'command', command: stayAwakeCmd }] };
-  const allowSleepHook = { hooks: [{ type: 'command', command: allowSleepCmd }] };
+  const hookMap = {
+    // UserPromptSubmit — mark response as pending (long text gen / tool runs covered)
+    'UserPromptSubmit': { hooks: [{ type: 'command', command: pendingResponseCmd }] },
+    // Active tool events — just refresh last_activity
+    'PreToolUse':       { hooks: [{ type: 'command', command: stayAwakeCmd }] },
+    'PostToolUse':      { hooks: [{ type: 'command', command: stayAwakeCmd }] },
+    'PermissionRequest':{ hooks: [{ type: 'command', command: stayAwakeCmd }] },
+    'Notification':     { hooks: [{ type: 'command', command: stayAwakeCmd }] },
+    // Stop — full response turn finished, clear pending flag
+    'Stop':             { hooks: [{ type: 'command', command: responseDoneCmd }] },
+    // SessionEnd — clear session entirely
+    'SessionEnd':       { hooks: [{ type: 'command', command: allowSleepCmd }] }
+  };
 
-  // Remove any existing cc-caffeine hooks and add ours
-  const stayAwakeEvents = ['UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'PermissionRequest', 'Notification'];
-  const allowSleepEvents = ['SessionEnd'];
-
-  for (const event of stayAwakeEvents) {
+  for (const [event, hookEntry] of Object.entries(hookMap)) {
     if (!settings.hooks[event]) settings.hooks[event] = [];
-    // Remove cc-caffeine hooks
+    // Remove cc-caffeine and existing Insomnia hooks
     settings.hooks[event] = settings.hooks[event].filter(h =>
-      !h.hooks?.some(hh => hh.command?.includes('cc-caffeine'))
+      !h.hooks?.some(hh => hh.command?.includes('cc-caffeine') || hh.command?.includes('agent-hook.js'))
     );
-    // Remove existing Insomnia hooks
-    settings.hooks[event] = settings.hooks[event].filter(h =>
-      !h.hooks?.some(hh => hh.command?.includes('agent-hook.js'))
-    );
-    settings.hooks[event].push(stayAwakeHook);
-  }
-
-  for (const event of allowSleepEvents) {
-    if (!settings.hooks[event]) settings.hooks[event] = [];
-    settings.hooks[event] = settings.hooks[event].filter(h =>
-      !h.hooks?.some(hh => hh.command?.includes('cc-caffeine'))
-    );
-    settings.hooks[event] = settings.hooks[event].filter(h =>
-      !h.hooks?.some(hh => hh.command?.includes('agent-hook.js'))
-    );
-    settings.hooks[event].push(allowSleepHook);
+    settings.hooks[event].push(hookEntry);
   }
 
   fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
@@ -752,6 +788,7 @@ function setupIPC() {
 
     activeIntegrations = activeIntegrations.filter(a => a.id !== integrationId);
     delete processLastSeen[integrationId];
+    delete childProcessCache[integrationId];
     saveConfig();
     evaluateState();
     return getStatus();
