@@ -36,7 +36,7 @@ const INTEGRATIONS = [
     name: 'Claude Code',
     description: 'Keeps PC awake while Claude is actively working on tasks',
     hookBased: true,
-    processNames: ['claude.exe', 'code.exe'],
+    processNames: ['claude.exe'],
     icon: 'claude'
   },
   {
