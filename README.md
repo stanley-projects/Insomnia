@@ -1,8 +1,8 @@
-# Insomnia
+# Insomnia — Keep Windows Awake During AI Coding Sessions
 
-**Keep your PC awake when it matters.**
+**Prevent your PC from sleeping while Claude Code, Cursor, Aider, or Codex are working.**
 
-Insomnia is a lightweight Windows app that prevents your computer from sleeping — automatically when AI coding agents are working, when specific apps are running, or manually with a toggle. No more losing progress to an untimely screen timeout.
+Insomnia is a free, lightweight Windows app that keeps your computer awake — automatically when AI coding agents are running, when specific apps are active, or manually with a toggle. A smarter caffeine alternative for developers: no more losing progress to an untimely screen timeout.
 
 ![Windows](https://img.shields.io/badge/platform-Windows-blue)
 ![Electron](https://img.shields.io/badge/built%20with-Electron-47848f)
@@ -32,7 +32,7 @@ Insomnia has built-in support for AI coding tools with two types of monitoring:
 | **OpenAI Codex CLI** | Process-based | Keeps awake while `codex.exe` is running |
 | **Ollama** | Process-based | Keeps awake during local AI model inference |
 
-The Claude Code integration is **hook-based** — it hooks directly into Claude Code's event system so your PC stays awake only while Claude is actively running tools and generating code, not when it's sitting idle waiting for your next prompt. Once Claude finishes, Insomnia releases within 90 seconds.
+The Claude Code integration is **hook-based** — it hooks directly into Claude Code's event system so your PC stays awake only while Claude is actively running tools and generating code, not when it's sitting idle waiting for your next prompt. Once Claude finishes, Insomnia releases within 3 minutes of inactivity.
 
 ### App Watching
 
@@ -56,7 +56,7 @@ Insomnia lives in your system tray, out of your way. The tray icon tells you at 
 
 - **Purple owl (eyes open)** — Staying Awake (keeping your PC on)
 - **Grey owl (eyes closed)** — Inactive (normal sleep behavior)
-- **Hover tooltip** — Shows exactly why it's awake: *"Staying awake for — Claude Code"*, *"Staying awake for — Manual mode + Chrome"*
+- **Hover tooltip** — Shows exactly why it's awake: *"Staying awake for — Claude Code"*, *"Staying awake for — Manually triggered + Chrome"*
 
 Close the window and it keeps running in the tray. Right-click for quick controls.
 
@@ -96,7 +96,7 @@ Insomnia uses Electron's `powerSaveBlocker` API to prevent Windows from entering
 
 1. **Manual toggle** — User explicitly wants the PC awake
 2. **Process monitoring** — Polls `tasklist` every 10 seconds to check if watched apps are running
-3. **Hook-based sessions** — For tools like Claude Code, lightweight hooks signal activity to a shared session file (`~/.insomnia/agent-sessions.json`). Sessions expire after 90 seconds of inactivity.
+3. **Hook-based sessions** — For tools like Claude Code, lightweight hooks signal activity to a shared session file (`~/.insomnia/agent-sessions.json`). Sessions expire after 3 minutes of inactivity.
 
 If *any* trigger is active, the PC stays awake. When *all* triggers go inactive, normal sleep behavior resumes.
 
@@ -127,13 +127,14 @@ Settings are stored in your Electron user data directory and persist across rest
 
 ## Use Cases
 
-- **AI-assisted coding** — Keep your PC awake while Claude Code, Aider, or Codex work on long tasks
+- **AI-assisted coding** — Prevent sleep while Claude Code, Cursor, Aider, or Codex work on long tasks
 - **Long downloads** — Watch your browser or download manager
 - **Video rendering** — Watch your editing software so your PC doesn't sleep mid-render
 - **Presentations** — Manual toggle before you present, toggle off when done
 - **Game updates** — Watch Steam or your game launcher during large updates
 - **Compiling** — Watch your IDE during long builds
 - **3D printing** — Watch your slicer or printer software
+- **Local AI inference** — Keep awake while Ollama runs large language models
 
 ## Tech Stack
 
@@ -145,6 +146,10 @@ Settings are stored in your Electron user data directory and persist across rest
 ## Contributing
 
 Pull requests welcome. If you'd like to add an integration for another AI coding tool or improve app discovery, feel free to open a PR.
+
+## Why Not Just Change Power Settings?
+
+Setting your screen timeout to "Never" or 2+ hours works, but then your PC never sleeps when you actually want it to — wasting power and wearing your hardware. Insomnia keeps your PC awake **only** when something needs it, and automatically steps back when it doesn't. It's like caffeine for your PC, but smarter.
 
 ## License
 
