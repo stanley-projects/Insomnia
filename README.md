@@ -70,6 +70,8 @@ Close the window and it keeps running in the tray. Right-click for quick control
 
 Head to the [Releases](https://github.com/stanley-projects/Insomnia/releases) page and download the latest `.exe` installer.
 
+**Nothing to set up.** On first launch Insomnia detects which AI coding tools you have installed and switches those integrations on for you, wiring up their hooks itself. Install a new tool later and it is picked up on the next launch. Nothing else is required — in particular you do **not** need Node.js installed; Insomnia runs its hooks on the runtime it ships with.
+
 ### winget
 
 ```
