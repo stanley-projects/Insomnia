@@ -36,7 +36,7 @@ Insomnia has built-in support for AI coding tools with two types of monitoring:
 | **OpenAI Codex** | Hook-based | Knows when Codex is *actively working* (CLI, VS Code, or desktop). Uses Codex's `notify` config plus Codex session activity to track active work. |
 | **Ollama** | Process-based | Keeps awake during local AI model inference |
 
-The Claude Code integration is **hook-based** — it hooks directly into Claude Code's event system so your PC stays awake only while Claude is actively running tools and generating code, not when it's sitting idle waiting for your next prompt. Once Claude finishes, Insomnia releases within 3 minutes of inactivity.
+The Claude Code integration is **hook-based** — it hooks directly into Claude Code's event system so your PC stays awake only while Claude is actively running tools and generating code, not when it's sitting idle waiting for your next prompt. Insomnia releases the moment Claude finishes a turn — Claude Code's `Stop` hook says so explicitly, rather than Insomnia inferring it from silence. That also means a single long tool call (a ten-minute build, a full test run) keeps your PC awake for its whole duration, even though no hook fires while it runs.
 
 ### App Watching
 
@@ -102,7 +102,7 @@ Insomnia uses Electron's `powerSaveBlocker` API to prevent Windows from entering
 
 1. **Manual toggle** — User explicitly wants the PC awake
 2. **Process monitoring** — Polls `tasklist` every 10 seconds to check if watched apps are running
-3. **Hook-based sessions** — For tools like Claude Code, lightweight hooks signal activity to a shared session file (`~/.insomnia/agent-sessions.json`). Sessions expire after 3 minutes of inactivity.
+3. **Hook-based sessions** — For tools like Claude Code, lightweight hooks signal activity to a shared session file (`~/.insomnia/agent-sessions.json`). A Claude Code session ends when its `Stop` hook fires; otherwise it expires after 3 minutes of silence, or up to 30 minutes while `claude.exe` is still alive and a turn is still open.
 
 If *any* trigger is active, the PC stays awake. When *all* triggers go inactive, normal sleep behavior resumes.
 

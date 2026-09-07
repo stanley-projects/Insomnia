@@ -7,7 +7,7 @@ const { execFile, spawn } = require('child_process');
 // ── State ──────────────────────────────────────────────────────────────────────
 let mainWindow = null;
 let tray = null;
-let powerSaveId = null;
+let powerSaveIds = [];
 let pollInterval = null;
 let isAwake = false;
 let manualAwake = false;
@@ -31,6 +31,14 @@ const SESSIONS_FILE = path.join(SESSIONS_DIR, 'agent-sessions.json');
 const HOOK_LAUNCHER = path.join(SESSIONS_DIR, 'insomnia-hook.cmd');
 const SESSION_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes — timeout between hook events
 const SESSION_PROCESS_GRACE_MS = 5 * 60 * 1000; // 5 minutes — covers long AI responses with no tool calls
+// Integrations that tell us explicitly when a turn ends (Claude Code's Stop hook)
+// get a much longer grace while a turn is still open. Nothing fires during a
+// single long tool call — a 10-minute build or test run — so the old 5-minute
+// grace expired mid-work and the machine slept during exactly the workload this
+// app exists to protect. Safe to be generous here only because the Stop hook
+// deletes the session the moment the turn finishes, so an idle session does not
+// sit on this timer.
+const SESSION_TURN_GRACE_MS = 30 * 60 * 1000; // 30 minutes — long tool call still running
 const PROCESS_GRACE_MS = 30 * 1000; // 30 seconds — grace period for process-based integrations/apps after process disappears
 
 // ── Available Integrations ─────────────────────────────────────────────────────
@@ -40,6 +48,9 @@ const INTEGRATIONS = [
     name: 'Claude Code',
     description: 'Keeps PC awake while Claude is actively working on tasks',
     hookBased: true,
+    // Claude Code fires a Stop hook at the end of every turn, so we are told when
+    // work finishes instead of inferring it from silence.
+    endOfTurnSignal: true,
     processNames: ['claude.exe'],
     icon: 'claude'
   },
@@ -151,20 +162,40 @@ function saveConfig() {
 }
 
 // ── Power Management ───────────────────────────────────────────────────────────
-function startCaffeinating() {
-  if (powerSaveId === null) {
-    powerSaveId = powerSaveBlocker.start('prevent-display-sleep');
+// One request only. Adding 'prevent-app-suspension' alongside it does nothing:
+// Electron applies just the highest-precedence blocker, and 'prevent-display-sleep'
+// outranks it — `powercfg /requests` confirms DISPLAY held and SYSTEM "None" even
+// with both started. That is the right request to hold on this platform anyway: a
+// Modern Standby (S0 low power idle) PC enters standby when the display turns off,
+// so holding the display awake is what keeps the machine running. What Windows
+// will still honour over any app request is an explicit sleep — closing the lid,
+// the power button, or a critical battery action.
+const POWER_BLOCKER_TYPE = 'prevent-display-sleep';
+
+function ensurePowerBlockers() {
+  // Re-asserted on every poll, not only on transition: a request that Windows or
+  // Electron drops would otherwise leave the tray reporting "staying awake" while
+  // nothing actually holds the machine up.
+  if (powerSaveIds.some(id => powerSaveBlocker.isStarted(id))) return;
+  powerSaveIds = [powerSaveBlocker.start(POWER_BLOCKER_TYPE)];
+}
+
+function releasePowerBlockers() {
+  for (const id of powerSaveIds) {
+    if (powerSaveBlocker.isStarted(id)) powerSaveBlocker.stop(id);
   }
+  powerSaveIds = [];
+}
+
+function startCaffeinating() {
+  ensurePowerBlockers();
   isAwake = true;
   updateTray();
   notifyRenderer();
 }
 
 function stopCaffeinating() {
-  if (powerSaveId !== null) {
-    powerSaveBlocker.stop(powerSaveId);
-    powerSaveId = null;
-  }
+  releasePowerBlockers();
   isAwake = false;
   updateTray();
   notifyRenderer();
@@ -177,6 +208,9 @@ function evaluateState() {
   } else if (!shouldBeAwake && isAwake) {
     stopCaffeinating();
   } else {
+    // Already in the right state — but if we are meant to be awake, make sure the
+    // requests are still registered with Windows before trusting the tray.
+    if (isAwake) ensurePowerBlockers();
     updateTray();
     notifyRenderer();
   }
@@ -285,12 +319,15 @@ function checkAgentSessions(tasklistLower) {
         ? def.processNames.some(p => tasklistLower.includes(p.toLowerCase()))
         : false;
 
-      // If process is alive, allow a longer grace period (background builds etc)
-      // but not forever — if last hook was >5 min ago, Claude is just sitting idle
+      // If the process is alive, allow a longer grace period (long tool calls,
+      // background builds). Integrations that release explicitly at end of turn
+      // can be given a much longer one: a session only survives here while its
+      // turn is genuinely still open.
+      const graceMs = def.endOfTurnSignal ? SESSION_TURN_GRACE_MS : SESSION_PROCESS_GRACE_MS;
       const withinGracePeriod = Object.values(data.sessions || {}).some(s => {
         if (s.integration !== def.id) return false;
         const lastActivity = new Date(s.last_activity).getTime();
-        return (now - lastActivity) < SESSION_PROCESS_GRACE_MS;
+        return (now - lastActivity) < graceMs;
       });
 
       if (hasRecentHook || (processAlive && withinGracePeriod)) {
@@ -612,7 +649,9 @@ function setupClaudeCodeHooks() {
   const allowSleepHook = { hooks: [{ type: 'command', command: allowSleepCmd }] };
 
   const stayAwakeEvents = ['UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'PermissionRequest', 'Notification'];
-  const allowSleepEvents = ['SessionEnd'];
+  // Stop fires when Claude finishes responding — the one unambiguous "work is
+  // done" signal. SessionEnd covers the session going away entirely.
+  const allowSleepEvents = ['Stop', 'SessionEnd'];
 
   // Clear out hooks from every previous Insomnia build first — including events
   // we no longer manage (older versions wrote a `Stop` hook) and stale absolute
@@ -820,10 +859,7 @@ function createTray() {
     {
       label: 'Exit',
       click: () => {
-        if (powerSaveId !== null) {
-          powerSaveBlocker.stop(powerSaveId);
-          powerSaveId = null;
-        }
+        releasePowerBlockers();
         app.quit();
       }
     }
@@ -1282,10 +1318,7 @@ app.on('before-quit', () => {
   if (sessionWatcher) { sessionWatcher.close(); sessionWatcher = null; }
   stopCodexWatcher();
   stopCursorWatcher();
-  if (powerSaveId !== null) {
-    powerSaveBlocker.stop(powerSaveId);
-    powerSaveId = null;
-  }
+  releasePowerBlockers();
 });
 
 app.whenReady().then(() => {
